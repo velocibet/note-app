@@ -1,0 +1,4 @@
+node_modules
+deploy.sh
+nginx
+docker-compose.yml

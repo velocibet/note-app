@@ -1,13 +1,27 @@
-# SecureNote
+# Inkwell
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 > **Privacy-first, Zero-Knowledge End-to-End Encrypted (E2EE) Note Service**
 
-# 소개
+## 소개
 
-본 서비스는 암호화를 중심으로 한 보안 노트입니다.
+자신 외에 누구도 알 수 없는 노트를 작성할수 있는 웹 앱입니다. 자신의 생각을 지켜보세요.
 
-현재 서비스 개발 단계입니다.
+## 아키텍처
+
+<img width="1725" height="804" alt="Screenshot From 2026-04-26 17-29-54" src="https://github.com/user-attachments/assets/99acf76b-52ec-458e-8e5b-4303c46fe15d" />
+
+---
+
+### Frontend
+- Nuxt 4
+
+### Backend
+- NestJS
+- PostgreSQL
+
+### Storage
+- Cloudflare R2
 
 ## LICENSE
 

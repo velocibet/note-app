@@ -1,6 +1,6 @@
-import { Injectable, Inject, BadGatewayException, BadRequestException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Inject, BadGatewayException, BadRequestException, UnauthorizedException, InternalServerErrorException } from '@nestjs/common';
 import { Pool } from 'pg';
-import { CreateNoteDto, UpdateNoteDto } from './dto/create-note.dto';
+import { CreateNoteDto, UpdateNoteDto, CreateShareNoteDto } from './dto/create-note.dto';
 import { ulid } from 'ulid';
 
 @Injectable()
@@ -131,5 +131,91 @@ export class NotesService {
 
     if (rowCount === 0) throw new BadRequestException("Note not found to restore.");
     return "Note restored successfully.";
+  }
+
+  async shareNote(userId: string, noteId: string, createShareNoteDto: CreateShareNoteDto) {
+    const {
+      id,
+      iv,
+      encrypted_title,
+      encrypted_content,
+      is_burn_after_read,
+      expires_at
+    } = createShareNoteDto;
+
+    const ownershipCheck = await this.db.query(
+      `SELECT id FROM user_notes WHERE id = $1 AND user_id = $2`,
+      [noteId, userId]
+    );
+
+    if (ownershipCheck.rows.length < 1) {
+      throw new BadRequestException("Note does not exist or you do not have permission.");
+    }
+
+    const query = `
+      INSERT INTO share_notes (
+        id, 
+        iv,
+        encrypted_title, 
+        encrypted_content, 
+        is_burn_after_read, 
+        expires_at,
+        created_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, NOW())
+      RETURNING id, expires_at;
+    `;
+
+    try {
+      const values = [
+        id,
+        iv,
+        encrypted_title,
+        encrypted_content,
+        is_burn_after_read ?? false,
+        expires_at || null,
+      ];
+
+      const result = await this.db.query(query, values);
+
+      return {
+        success: true,
+        shareId: result.rows[0].id,
+        expiresAt: result.rows[0].expires_at,
+        message: 'A secure share link was successfully created.'
+      };
+    } catch (error) {
+      throw new InternalServerErrorException('Failed to create shared link.');
+    }
+  }
+
+  async getSharedNote(id: string) {
+    const query = `
+      SELECT id, iv, encrypted_title, encrypted_content, is_burn_after_read, expires_at
+      FROM share_notes
+      WHERE id = $1 AND (expires_at IS NULL OR expires_at > NOW())
+      LIMIT 1
+    `;
+
+    const { rows } = await this.db.query(query, [id]);
+
+    if (rows.length < 1) {
+      throw new BadRequestException("The link is invalid, expired, or has already been destroyed.");
+    }
+
+    const note = rows[0];
+
+    if (note.is_burn_after_read) {
+      await this.db.query(`DELETE FROM share_notes WHERE id = $1`, [id]);
+    }
+
+    return {
+      message: 'Note retrieved successfully.',
+      data: {
+        iv: note.iv,
+        title: note.encrypted_title,
+        content: note.encrypted_content,
+        is_burned: note.is_burn_after_read,
+      }
+    };
   }
 }

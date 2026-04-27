@@ -19,6 +19,13 @@ const contextMenu = ref({
   selectedId: '' as string
 })
 
+const showBanner = ref(false)
+
+const closeBanner = () => {
+  showBanner.value = false
+  localStorage.setItem('public-pc-warning-dismissed', 'true')
+}
+
 const filteredNotes = computed(() => {
   const query = searchQuery.value.trim().toLowerCase()
 
@@ -142,7 +149,7 @@ const fetchNotes = async () => {
   if (response.success && Array.isArray(response.data)) {
     const vaultKey = authStore.masterKey
     if (!vaultKey) {
-      navigateTo('/login')
+      isLoading.value = true
       return
     }
     const decryptedNotes = await Promise.all(response.data.map(async (note: any) => {
@@ -286,9 +293,6 @@ const handleLogout = async () => {
   }
 }
 
-// onMounted(() => {
-//   fetchNotes()
-// })
 onMounted(async () => {
   const authStore = useAuthStore()
 
@@ -296,23 +300,35 @@ onMounted(async () => {
   if (savedKey.masterKey) {
     authStore.setMasterKey(savedKey.masterKey)
   }
+
+  const dismissed = localStorage.getItem('public-pc-warning-dismissed')
+  if (!dismissed) {
+    showBanner.value = true
+  }
   
-  fetchNotes()
+  // fetchNotes()
 })
-// watch(
-//   () => authStore.masterKey,
-//   (key) => {
-//     if (key) {
-      
-//     }
-//   },
-//   { immediate: true }
-// )
+
+watch(
+  () => authStore.masterKey,
+  (key) => {
+    if (key) {
+      fetchNotes()
+    }
+  },
+  { immediate: true }
+)
 </script>
 
 <template>
   <!-- <ClientOnly> -->
     <div class="dashboard">
+    <div v-if="showBanner" class="top-banner">
+      <span>
+        If you're using a public computer, please log out after use.
+      </span>
+      <button @click="closeBanner" class="banner-close">✕</button>
+    </div>
       <!-- Sidebar -->
       <aside class="sidebar">
         <NuxtLink to="/notes" class="sidebar-logo">
@@ -1135,5 +1151,34 @@ onMounted(async () => {
   width: 16px;
   height: 16px;
   stroke-width: 1.8;
+}
+
+.top-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 48px;
+  background: #111827;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  font-size: 13px;
+  z-index: 2000;
+}
+
+.banner-close {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.banner-close:hover {
+  opacity: 1;
 }
 </style>

@@ -1,5 +1,5 @@
 import { PartialType } from '@nestjs/mapped-types';
-import { IsString, IsNotEmpty, IsOptional, IsBoolean, MaxLength } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsBoolean, MaxLength, IsDateString } from 'class-validator';
 
 export class CreateNoteDto {
   @IsString()
@@ -31,3 +31,29 @@ export class CreateNoteDto {
 }
 
 export class UpdateNoteDto extends PartialType(CreateNoteDto) {}
+
+export class CreateShareNoteDto {
+  @IsString()
+  @IsNotEmpty()
+  id: string;
+
+  @IsString()
+  @IsNotEmpty()
+  iv: string;
+
+  @IsString()
+  @IsNotEmpty()
+  encrypted_title: string;
+
+  @IsString()
+  @IsNotEmpty()
+  encrypted_content: string;
+
+  @IsBoolean()
+  @IsOptional()
+  is_burn_after_read?: boolean;
+
+  @IsDateString()
+  @IsOptional()
+  expires_at?: string;
+}

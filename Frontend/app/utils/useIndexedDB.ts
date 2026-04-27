@@ -1,77 +1,58 @@
-export async function saveVaultKeyToIndexedDB(username: string, vaultKeyUint8: Uint8Array) {
-  const request: IDBOpenDBRequest = indexedDB.open("SecureStorage", 1);
+import { openDB, type IDBPDatabase } from 'idb'
 
-  request.onupgradeneeded = (event: IDBVersionChangeEvent) => {
-      const target = event.target as IDBOpenDBRequest;
-      const db = target.result;
-      
-      if (!db.objectStoreNames.contains("keys")) {
-        db.createObjectStore("keys");
-      }
-  };
+const DB_NAME = 'SecureStorage'
+const DB_VERSION = 1
+const STORE_NAME = 'keys'
 
-  request.onsuccess = (event: Event) => {
-      const db = (event.target as IDBOpenDBRequest).result;
-      const transaction = db.transaction("keys", "readwrite");
-      const store = transaction.objectStore("keys");
+let dbPromise: Promise<IDBPDatabase> | null = null
 
-      store.put(username, "username");
-      store.put(vaultKeyUint8, "masterKey");
+function getDB() {
+  if (!dbPromise) {
+    dbPromise = openDB(DB_NAME, DB_VERSION, {
+      upgrade(db) {
+        if (!db.objectStoreNames.contains(STORE_NAME)) {
+          db.createObjectStore(STORE_NAME)
+        }
+      },
+    })
+  }
+  return dbPromise
+}
 
-      transaction.oncomplete = () => {
-        console.log("유저네임과 개인 키가 안전하게 저장되었습니다.");
-      };
-  };
+export async function saveVaultKeyToIndexedDB(
+  username: string,
+  vaultKeyUint8: Uint8Array
+) {
+  const db = await getDB()
+
+  await db.put(STORE_NAME, username, 'username')
+  await db.put(STORE_NAME, vaultKeyUint8, 'masterKey')
+
+  console.log('유저네임과 개인 키가 안전하게 저장되었습니다.')
 }
 
 export async function clearAllKeysFromIndexedDB() {
-  const request: IDBOpenDBRequest = indexedDB.open("SecureStorage", 1);
+  const db = await getDB()
 
-  request.onsuccess = (event: Event) => {
-    const target = event.target as IDBOpenDBRequest;
-    const db = target.result;
+  await db.clear(STORE_NAME)
 
-    const transaction = db.transaction("keys", "readwrite");
-    const store = transaction.objectStore("keys");
-
-    const clearRequest = store.clear();
-
-    clearRequest.onsuccess = () => {
-      console.log("모든 로컬 보안 저장소가 초기화되었습니다.");
-    };
-  };
+  console.log('모든 로컬 보안 저장소가 초기화되었습니다.')
 }
 
-export async function getVaultKeyFromIndexedDB(): Promise<{username: string | null, masterKey: Uint8Array | null}> {
-  return new Promise((resolve, reject) => {
-    const request: IDBOpenDBRequest = indexedDB.open("SecureStorage", 1);
+export async function getVaultKeyFromIndexedDB(): Promise<{
+  username: string | null
+  masterKey: Uint8Array | null
+}> {
+  const db = await getDB()
 
-    request.onerror = () => {
-      console.error("보안 저장소 접근 실패");
-      reject(new Error("Database open error"));
-    };
+  // 병렬로 가져오기
+  const [username, masterKey] = await Promise.all([
+    db.get(STORE_NAME, 'username'),
+    db.get(STORE_NAME, 'masterKey'),
+  ])
 
-    request.onsuccess = (event: Event) => {
-      const db = (event.target as IDBOpenDBRequest).result;
-      if (!db.objectStoreNames.contains("keys")) {
-        return resolve({ username: null, masterKey: null });
-      }
-
-      const transaction = db.transaction("keys", "readonly");
-      const store = transaction.objectStore("keys");
-
-      // 두 데이터를 모두 가져오기 위해 병렬 요청
-      const nameReq = store.get("username");
-      const keyReq = store.get("masterKey");
-
-      // console.log(keyReq.result)
-
-      transaction.oncomplete = () => {
-        resolve({
-          username: nameReq.result || null,
-          masterKey: keyReq.result instanceof Uint8Array ? keyReq.result : null
-        });
-      };
-    };
-  });
+  return {
+    username: username ?? null,
+    masterKey: masterKey instanceof Uint8Array ? masterKey : null,
+  }
 }

@@ -1,8 +1,9 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
 import { NotesService } from './notes.service';
-import { CreateNoteDto, UpdateNoteDto } from './dto/create-note.dto';
+import { CreateNoteDto, UpdateNoteDto, CreateShareNoteDto } from './dto/create-note.dto';
 import { LoggedInGuard } from '../auth/auth.guard';
 import { User } from '../common/decorators/user.decorator';
+import { Public } from 'src/common/decorators/public.decorator';
 
 @Controller('notes')
 @UseGuards(LoggedInGuard)
@@ -63,5 +64,22 @@ export class NotesController {
     @Param('id') id: string
   ) {
     return this.notesService.restore(userId, id);
+  }
+
+  @Post(':id/share')
+  async shareNote(
+    @User('id') userId: string,
+    @Param('id') id: string,
+    @Body() createShareNoteDto: CreateShareNoteDto
+  ) {
+    return this.notesService.shareNote(userId, id, createShareNoteDto)
+  }
+
+  @Public()
+  @Get(':id/share')
+  async getSharedNote (
+    @Param('id') id: string,
+  ) {
+    return this.notesService.getSharedNote(id)
   }
 }

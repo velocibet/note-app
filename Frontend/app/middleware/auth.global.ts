@@ -1,7 +1,6 @@
 export default defineNuxtRouteMiddleware(async (to) => {
   const authStore = useAuthStore()
   const userApi = useUserApi()
-  const router = useRouter()
 
   if (!authStore.isInitialized) {
     await authStore.initAuth(userApi)
@@ -9,13 +8,18 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
   if (!authStore.isInitialized) return
 
-  const isPublic = ['/', '/login', '/privacy', '/terms'].includes(to.path)
+  const publicPaths = ['/', '/login', '/privacy', '/terms']
+  const isExactPublic = publicPaths.includes(to.path)
+
+  const isSharePage = to.path.startsWith('/notes/share/')
+
+  const isPublic = isExactPublic || isSharePage
 
   if (!authStore.isLoggedIn && !isPublic) {
     return navigateTo('/login')
   }
 
-  if (authStore.isLoggedIn && isPublic) {
+  if (authStore.isLoggedIn && isExactPublic) {
     return navigateTo('/notes')
   }
 })

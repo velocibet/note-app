@@ -55,5 +55,20 @@ export const useNotesApi = () => {
          */
         toggleArchive: (id: string, isArchived: boolean) =>
             api.patch(`/${id}`, { is_archived: isArchived }),
+
+        /**
+         * 보안 공유 링크 생성
+         * @param id 원본 노트 ID (Param)
+         * @param shareDto 공유용 암호화 데이터 (Body)
+         */
+        shareNote: (id: string, shareDto: CreateShareNoteDto) =>
+            api.post<ShareNoteResponse>(`/${id}/share`, shareDto),
+
+        /**
+         * 공유된 노트 조회 (Public)
+         * 주의: 백엔드 컨트롤러에서 이 엔드포인트는 가드를 통과하도록 설정해야 함
+         */
+        getSharedNote: (shareId: string) =>
+            api.get<SharedNoteResponse>(`/${shareId}/share`),
     }
 };

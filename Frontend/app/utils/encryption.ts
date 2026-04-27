@@ -207,3 +207,71 @@ export async function decryptNote(
     tags: await decryptTags(encryptedData.tags),
   };
 }
+
+/**
+ * 공유용 임시 키 생성 및 암호화
+ * @param plainData { title, content }
+ * @returns { encryptedData, shareKey }
+ */
+export async function encryptForShare(plainData: { title: string, content: string }) {
+  const encoder = new TextEncoder();
+  
+  const shareKeyRaw = window.crypto.getRandomValues(new Uint8Array(32));
+  const shareKeyBase64 = btoa(String.fromCharCode(...shareKeyRaw))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, ''); // URL Safe Base64
+
+  const cryptoKey = await window.crypto.subtle.importKey(
+    "raw", shareKeyRaw, { name: "AES-GCM" }, false, ["encrypt"]
+  );
+
+  const iv = window.crypto.getRandomValues(new Uint8Array(12));
+
+  const encryptField = async (text: string) => {
+    const encrypted = await window.crypto.subtle.encrypt(
+      { name: "AES-GCM", iv },
+      cryptoKey,
+      encoder.encode(text)
+    );
+    return btoa(String.fromCharCode(...new Uint8Array(encrypted)));
+  };
+
+  return {
+    payload: {
+      encrypted_title: await encryptField(plainData.title),
+      encrypted_content: await encryptField(plainData.content),
+      iv: btoa(String.fromCharCode(...iv)),
+    },
+    shareKey: shareKeyBase64
+  };
+}
+
+export async function decryptSharedData (
+  encryptedData: string,
+  ivBase64: string,
+  shareKeyBase64: string
+) {
+  const decoder = new TextDecoder();
+  const normalize = (str: string) => str.replace(/-/g, '+').replace(/_/g, '/');
+  const base64ToBuffer = (base64: string) =>
+    Uint8Array.from(atob(normalize(base64)), (c) => c.charCodeAt(0));
+
+  const shareKeyRaw = base64ToBuffer(shareKeyBase64);
+  const iv = base64ToBuffer(ivBase64);
+  const encryptedBuffer = base64ToBuffer(encryptedData);
+
+  const cryptoKey = await window.crypto.subtle.importKey(
+    "raw",
+    shareKeyRaw,
+    { name: "AES-GCM" },
+    false,
+    ["decrypt"]
+  );
+
+  const decrypted = await window.crypto.subtle.decrypt(
+    { name: "AES-GCM", iv },
+    cryptoKey,
+    encryptedBuffer
+  );
+
+  return decoder.decode(decrypted);
+};

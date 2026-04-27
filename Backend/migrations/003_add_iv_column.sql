@@ -1,0 +1,2 @@
+ALTER TABLE share_notes 
+ADD COLUMN iv VARCHAR(24) NOT NULL;

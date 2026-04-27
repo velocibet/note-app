@@ -56,3 +56,25 @@ export interface DecryptedNote {
   content: string;
   tags: string[];
 }
+
+export interface CreateShareNoteDto {
+  id: string;
+  iv: string;
+  encrypted_title: string;
+  encrypted_content: string;
+  is_burn_after_read: boolean;
+  expires_at: string | null;
+}
+
+export interface ShareNoteResponse {
+  shareId: string; 
+  expiresAt: string | null; 
+  message: string; 
+}
+
+export interface SharedNoteResponse {
+  iv: string;
+  title: string;
+  content: string;
+  is_burned: boolean;
+}
